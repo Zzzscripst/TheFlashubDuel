@@ -1,0 +1,106 @@
+-- ==========================================================
+-- STORM HUB DUELS v4.1 - COMPLETO (LOOP + INF JUMP + UI)
+-- ==========================================================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local LocalPlayer = Players.LocalPlayer
+
+-- 1. Copiar Link Automaticamente
+if setclipboard then pcall(function() setclipboard("https://discord.gg/qQ4kQ5rbrF") end) end
+
+-- 2. Infinite Jump (Automático)
+local infJump = true
+UserInputService.JumpRequest:Connect(function()
+    if infJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        LocalPlayer.Character.HumanoidRootPart.Velocity = Vector3.new(LocalPlayer.Character.HumanoidRootPart.Velocity.X, 45, LocalPlayer.Character.HumanoidRootPart.Velocity.Z)
+    end
+end)
+
+-- 3. BillboardGui na Cabeça
+local function criarLinkCabeca(character)
+    local head = character:WaitForChild("Head", 5)
+    if not head or head:FindFirstChild("DiscordAd") then return end
+    local billboard = Instance.new("BillboardGui", head)
+    billboard.Name = "DiscordAd"; billboard.Size = UDim2.new(0, 200, 0, 50)
+    billboard.AlwaysOnTop = true; billboard.ExtentsOffset = Vector3.new(0, 2.5, 0)
+    local textLabel = Instance.new("TextLabel", billboard)
+    textLabel.Size = UDim2.new(1, 0, 1, 0); textLabel.BackgroundTransparency = 1
+    textLabel.Text = "discord.gg/qQ4kQ5rbrF"; textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    textLabel.Font = Enum.Font.GothamBold; textLabel.TextSize = 16; textLabel.TextStrokeTransparency = 0
+end
+if LocalPlayer.Character then criarLinkCabeca(LocalPlayer.Character) end
+LocalPlayer.CharacterAdded:Connect(criarLinkCabeca)
+
+-- 4. Variáveis e Lógica de Movimento (LOOP)
+local AutoLeftEnabled, AutoRightEnabled = false, false
+local autoLeftConn, autoRightConn
+local Config = { Speed = 34 }
+local P_L = {Vector3.new(-476.48,-6.28,92.73), Vector3.new(-483.12,-4.95,94.80), Vector3.new(-473.38,-8.40,22.34)}
+local P_R = {Vector3.new(-476.16,-6.52,25.62), Vector3.new(-483.04,-5.09,23.14), Vector3.new(-476.17,-7.91,97.91)}
+
+local function getHum() return LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") end
+
+local function startAutoLeft()
+    local phase = 1
+    autoLeftConn = RunService.Heartbeat:Connect(function()
+        if not AutoLeftEnabled then return end
+        local hum = getHum()
+        if not hum or not hum.RootPart then return end
+        hum.WalkSpeed = Config.Speed
+        if phase == 1 then hum:MoveTo(P_L[1]) if (hum.RootPart.Position - P_L[1]).Magnitude < 3 then phase = 2 task.wait(2) end
+        elseif phase == 2 then hum:MoveTo(P_L[2]) if (hum.RootPart.Position - P_L[2]).Magnitude < 3 then phase = 3 task.wait(2) end
+        elseif phase == 3 then hum:MoveTo(P_L[3]) if (hum.RootPart.Position - P_L[3]).Magnitude < 3 then phase = 1 end
+        end
+    end)
+end
+
+local function startAutoRight()
+    local phase = 1
+    autoRightConn = RunService.Heartbeat:Connect(function()
+        if not AutoRightEnabled then return end
+        local hum = getHum()
+        if not hum or not hum.RootPart then return end
+        hum.WalkSpeed = Config.Speed
+        if phase == 1 then hum:MoveTo(P_R[1]) if (hum.RootPart.Position - P_R[1]).Magnitude < 3 then phase = 2 task.wait(2) end
+        elseif phase == 2 then hum:MoveTo(P_R[2]) if (hum.RootPart.Position - P_R[2]).Magnitude < 3 then phase = 3 task.wait(2) end
+        elseif phase == 3 then hum:MoveTo(P_R[3]) if (hum.RootPart.Position - P_R[3]).Magnitude < 3 then phase = 1 end
+        end
+    end)
+end
+
+-- 5. Interface
+local screenGui = Instance.new("ScreenGui", CoreGui)
+local sidePanel = Instance.new("Frame", screenGui)
+sidePanel.Size = UDim2.new(0, 90, 0, 180); sidePanel.Position = UDim2.new(1, -110, 0.5, -90); sidePanel.BackgroundTransparency = 1
+Instance.new("UIListLayout", sidePanel).Padding = UDim.new(0, 10)
+
+local buttons = {}
+local function createRoundedSquare(text, borderColor, onClick)
+    local btn = Instance.new("TextButton", sidePanel)
+    btn.Size = UDim2.new(0, 80, 0, 80); btn.BackgroundColor3 = Color3.fromRGB(12, 11, 18)
+    btn.Text = text; btn.TextColor3 = Color3.new(1, 1, 1); btn.Font = Enum.Font.GothamBold; btn.TextSize = 12
+    btn.AutoButtonColor = false; btn.BorderSizePixel = 0
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 14)
+    local stroke = Instance.new("UIStroke", btn)
+    stroke.Color = borderColor; stroke.Thickness = 3; stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    table.insert(buttons, {btn = btn, stroke = stroke, originalColor = borderColor})
+    btn.MouseButton1Click:Connect(function()
+        local active = not ((text:find("LEFT") and AutoLeftEnabled) or (text:find("RIGHT") and AutoRightEnabled))
+        for _, b in pairs(buttons) do b.stroke.Color = b.originalColor end
+        if active then stroke.Color = Color3.new(1, 1, 1) end
+        onClick(active)
+    end)
+end
+
+createRoundedSquare("AUTO\nLEFT", Color3.fromRGB(0, 0, 255), function(state)
+    AutoRightEnabled = false; AutoLeftEnabled = state
+    if state then startAutoLeft() elseif autoLeftConn then autoLeftConn:Disconnect() getHum().WalkSpeed = 16 end
+end)
+
+createRoundedSquare("AUTO\nRIGHT", Color3.fromRGB(255, 0, 0), function(state)
+    AutoLeftEnabled = false; AutoRightEnabled = state
+    if state then startAutoRight() elseif autoRightConn then autoRightConn:Disconnect() getHum().WalkSpeed = 16 end
+end)
